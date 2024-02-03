@@ -6,6 +6,7 @@ use nostr_relay::{
     Extension, ExtensionMessageResult, List, Session,
 };
 use serde::Deserialize;
+use tracing::warn;
 use uuid::Uuid;
 
 #[derive(Deserialize, Default, Debug)]
@@ -137,6 +138,16 @@ impl Extension for Auth {
             let uuid = Uuid::new_v4().to_string();
             let state = AuthState::Challenge(uuid.clone());
             session.set(state);
+
+            //  // Print the challenged pubkey to the relay terminal
+            //  if let Some(challenge) = session.get::<AuthState>().and_then(|s| s.pubkey()) {
+            //     tracing::info!("Challenged pubkey: {}", challenge);
+            // } else {
+            //     // Handle the case where no public key is found
+            //     warn!("No challenged pubkey found in the session!");
+            //     // You may want to take appropriate action here, like closing the connection.
+            //     return;
+            // }
             ctx.text(format!(r#"["AUTH", "{uuid}"]"#));
         }
     }
@@ -157,7 +168,12 @@ impl Extension for Auth {
                         } else if event.kind() == 22242 {
                             for tag in event.tags() {
                                 if tag.len() > 1 && tag[0] == "challenge" && &tag[1] == challenge {
+
+                                    let pubkey = event.pubkey_str();
                                     session.set(AuthState::Pubkey(event.pubkey_str()));
+
+                                    tracing::info!("Successfully challenged pubkey: {}", pubkey);
+
                                     return OutgoingMessage::notice("auth success").into();
                                 }
                             }
@@ -180,6 +196,9 @@ impl Extension for Auth {
                         )
                         .into();
                     }
+
+                    let pubkey = event.pubkey_str();
+                    tracing::info!("event challenged pubkey: {}", pubkey);
                 }
                 IncomingMessage::Req(_) => {
                     if let Err(err) = Self::verify_permission(

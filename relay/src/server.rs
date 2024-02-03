@@ -48,6 +48,10 @@ impl Server {
             addr.do_send(msg);
         }
     }
+
+    fn print_new_client(&self) {
+        println!("New client connected");
+    }
 }
 
 /// Make actor from `Server`
@@ -67,11 +71,19 @@ impl Actor for Server {
 impl Handler<Connect> for Server {
     type Result = usize;
     fn handle(&mut self, msg: Connect, _ctx: &mut Self::Context) -> Self::Result {
+      
         if self.id == usize::MAX {
             self.id = 0;
         }
         self.id += 1;
         self.sessions.insert(self.id, msg.addr);
+
+        println!("testing");
+        info!("testings");
+
+
+        self.print_new_client();
+
         // send id back
         self.id
     }
